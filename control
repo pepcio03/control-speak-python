@@ -1,0 +1,90 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+#
+#  control.py
+#  
+#  Copyright 2014 Piotr Kopeć <piotrk0303@gmail.com>
+#  
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#  
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#  
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+#  MA 02110-1301, USA.
+#  
+#  
+
+import sys,os
+import pyaudio
+import wave
+import pocketsphinx as ps
+import sphinxbase
+
+#~ hmdir =
+dictd = '6751.dic'
+lmd = '6751.lm'
+ 
+def decodeSpeech(lmdir,dictp,wavfile):
+	speechRec = ps.Decoder(lm = lmdir, dict = dictp)
+	speechRec.decode_raw(wavfile)
+	result = speechRec.get_hyp()
+	return result[0]
+ 
+CHUNK = 1024
+FORMAT = pyaudio.paInt16
+CHANNELS = 1
+RATE = 16000
+RECORD_SECONDS = 4
+ 
+ 
+fn = "/tmp/control.wav";
+p = pyaudio.PyAudio()
+stream = p.open(format=FORMAT, channels=CHANNELS, rate=RATE, input=True, frames_per_buffer=CHUNK)
+
+wf = wave.open(fn, 'wb')
+wf.setnchannels(CHANNELS)
+wf.setsampwidth(p.get_sample_size(FORMAT))
+wf.setframerate(RATE)
+
+wavFile = file(fn,'rb')
+wwf = 0
+while True:
+
+	print("* recording")
+	frames = []
+	for i in range(0, int(RATE / CHUNK * RECORD_SECONDS)):
+		data = stream.read(CHUNK)
+		frames.append(data)
+	print("* done recording")
+
+	wf.writeframes(b''.join(frames))
+	
+	if frames != wwf:
+		recognised = decodeSpeech(lmd,dictd,wavFile)
+		wwf = frames
+
+	if recognised == 'TURN ON WEB' or recognised == 'ON WEB':
+		cm = "iceweasel"
+		print "on web"
+		os.system(cm)
+		
+	if recognised == 'TURN ON FILER' or recognised == 'ON FILER':
+		cm = "nautilus"
+		print "on nautilus"
+		os.system(cm)
+		
+	if recognised == 'OFF':
+		print "off"
+		os.system("exit")
+	print recognised
+
+
+wf.close()
