@@ -27,8 +27,9 @@ import pyaudio
 import wave
 import pocketsphinx as ps
 import sphinxbase
+import matplotlib.pylab as plt
+import numpy as np
 
-#~ hmdir =
 dictd = '6751.dic'
 lmd = '6751.lm'
  
@@ -42,7 +43,7 @@ CHUNK = 1024
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 16000
-RECORD_SECONDS = 4
+RECORD_SECONDS = 3
  
  
 fn = "/tmp/control.wav";
@@ -55,19 +56,24 @@ wf.setsampwidth(p.get_sample_size(FORMAT))
 wf.setframerate(RATE)
 
 wavFile = file(fn,'rb')
-wwf = 0
+recognised = 0
+frames = []
+rec = False
 while True:
 
-	print("* recording")
-	frames = []
-	for i in range(0, int(RATE / CHUNK * RECORD_SECONDS)):
-		data = stream.read(CHUNK)
-		frames.append(data)
-	print("* done recording")
+	data = stream.read(CHUNK)
+	if max(np.fromstring(data, dtype=np.int16)) > 13000:	
+		print("* recording")
+		frames = []
+		for i in range(0, int(RATE / CHUNK * RECORD_SECONDS)):
+			frames.append(data)
+			data = stream.read(CHUNK)
+		rec = True
+		print("* done recording")
 
-	wf.writeframes(b''.join(frames))
-	
-	if frames != wwf:
+	if rec == True:
+		rec = False
+		wf.writeframes(b''.join(frames))
 		recognised = decodeSpeech(lmd,dictd,wavFile)
 		wwf = frames
 
@@ -84,7 +90,11 @@ while True:
 	if recognised == 'OFF':
 		print "off"
 		os.system("exit")
+
 	print recognised
+	recognised = 0
 
-
+stream.stop_stream()
+stream.close()
+p.terminate()
 wf.close()
